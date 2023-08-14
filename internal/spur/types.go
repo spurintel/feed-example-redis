@@ -1,7 +1,6 @@
 package spur
 
 import (
-	"strings"
 	"time"
 )
 
@@ -21,57 +20,13 @@ type API struct {
 	Token   string
 }
 
-// FeedTime - custom time type for feed time
-type FeedJSONTime time.Time
-
-func (t FeedJSONTime) MarshalJSON() ([]byte, error) {
-	formatted := time.Time(t).UTC()
-	return []byte(`"` + formatted.Format(time.RFC3339) + `"`), nil
-}
-
-func (t *FeedJSONTime) UnmarshalJSON(b []byte) error {
-	// Get the value as a string without the quotes
-	s := strings.Trim(string(b), "\"")
-
-	// If the string already has a z just parse it with RFC3339
-	if strings.HasSuffix(s, "Z") {
-		parsedTime, err := time.Parse(time.RFC3339, s)
-		if err != nil {
-			return err
-		}
-
-		// Set the value of the time
-		*t = FeedJSONTime(parsedTime)
-
-		return nil
-	}
-
-	// Add a 'Z' for the time zone
-	s = s + "Z"
-
-	// Parse the time
-	parsedTime, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return err
-	}
-
-	// Set the value of the time
-	*t = FeedJSONTime(parsedTime)
-
-	return nil
-}
-
-func (t *FeedJSONTime) Time() time.Time {
-	return time.Time(*t)
-}
-
 // FeedInfo - struct for latest feed info
 type FeedInfo struct {
 	JSON struct {
-		Location    string       `json:"location"`
-		Date        string       `json:"date"`
-		GeneratedAt FeedJSONTime `json:"generated_at"`
-		AvailableAt FeedJSONTime `json:"available_at"`
+		Location    string    `json:"location"`
+		Date        string    `json:"date"`
+		GeneratedAt time.Time `json:"generated_at"`
+		AvailableAt time.Time `json:"available_at"`
 	} `json:"json"`
 }
 
