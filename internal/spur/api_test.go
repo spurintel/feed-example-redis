@@ -10,9 +10,9 @@ import (
 )
 
 func TestLatestFeedInfo(t *testing.T) {
-	token := os.Getenv("API_TOKEN")
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
 	if token == "" {
-		t.Fatal("API_TOKEN is not set")
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
 	}
 
 	// Set up the API client with the test server URL and a mock token
@@ -38,9 +38,9 @@ func TestLatestFeedInfo(t *testing.T) {
 }
 
 func TestLatestRealtimeFeedInfo(t *testing.T) {
-	token := os.Getenv("API_TOKEN")
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
 	if token == "" {
-		t.Fatal("API_TOKEN is not set")
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
 	}
 
 	// Set up the API client with the test server URL and a mock token
@@ -66,9 +66,9 @@ func TestLatestRealtimeFeedInfo(t *testing.T) {
 }
 
 func TestLatestFeed(t *testing.T) {
-	token := os.Getenv("API_TOKEN")
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
 	if token == "" {
-		t.Fatal("API_TOKEN is not set")
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
 	}
 
 	// Set up the API client with the test server URL and a mock token
@@ -96,9 +96,9 @@ func TestLatestFeed(t *testing.T) {
 }
 
 func TestLatestRealtimeFeed(t *testing.T) {
-	token := os.Getenv("API_TOKEN")
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
 	if token == "" {
-		t.Fatal("API_TOKEN is not set")
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
 	}
 
 	// Set up the API client with the test server URL and a mock token
@@ -126,9 +126,9 @@ func TestLatestRealtimeFeed(t *testing.T) {
 }
 
 func TestRealtimeFeed(t *testing.T) {
-	token := os.Getenv("API_TOKEN")
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
 	if token == "" {
-		t.Fatal("API_TOKEN is not set")
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
 	}
 
 	// Set up the API client with the test server URL and a mock token
