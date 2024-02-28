@@ -1,43 +1,80 @@
 # feed-example-redis
-This is a fully working sample program to ingest Spur feeds into a redis database.
+This is a fully working sample program designed to ingest Spur feeds into a Redis database.
 
-The go binary provides 3 commands:
-1. daemon - runs forever, checks for latest feed and inserts it into redis, updates using realtime data
-2. insert - inserts a feed file into redis and exits
-3. merge - merges a realtime file into redis and exits
+The Go binary provides 3 commands:
+1. **daemon** - Runs indefinitely, checks for the latest feed, and inserts it into Redis, updates using real-time data if your token supports it.
+2. **insert** - Inserts a feed file into Redis and exits.
+3. **merge** - Merges a real-time file into Redis and exits.
 
 ## Requirements
-To run this program, you will need the following:
+To run this program, you will need:
 
-* Go
-* Docker
-* A Spur token with access to feeds and realtime data. It should exposed in your environment as "SPUR_REDIS_API_TOKEN"
+* Go installed on your machine.
+* Docker for managing containers.
+* A Spur token with access to feeds and optionally real-time data. This should be exposed in your environment as \`SPUR_REDIS_API_TOKEN\`.
 
 ## Running
-You have 2 options for running the application. You can build the binary directly with make and run it yourself.
-Alternatively, you can build and run it in containers with docker compose.
+You have two options for running the application: building the binary directly with make or using Docker Compose for containerized deployment.
 
-### Option 1 - run with docker compose
+### Option 1 - Run with Docker Compose
 ```bash
-# build and run with docker compose
+# Build and run with Docker Compose
 cd feed-example-redis
 make run
 ```
 
-### Option 2 - build an run the binary directly
+### Option 2 - Build and run the binary directly
 ```bash
-# build the binary
+# Build the binary
 cd feed-example-redis
 make
 
-# Start a redis server
+# Start a Redis server
 docker run --rm -p 6379:6379 --name redis redis:latest
 
-# Run the binary in daemon mode, assumes you have you token in a .env file
+# Run the binary in daemon mode, assumes you have your token and other configurations set in a .env file
 export $(cat .env | xargs) && ./target/spurredis_darwin_arm64 daemon
 ```
 
-### Querying for the data 
+## Configuring and Running the API Locally
+To run the API server locally, use the \`-api\` flag when starting the binary in daemon mode. This will start the local API server along with the daemon process:
+
+```bash
+# Run the binary with the API server enabled
+export \$(cat .env | xargs) && ./target/spurredis_darwin_arm64 -api daemon
+```
+
+Ensure the environment variables are set correctly, especially \`SPUR_REDIS_LOCAL_API_AUTH_TOKENS\`, to use the API authentication.
+
+## API Usage Examples
+Below are examples of how to interact with the API using curl:
+
+### Get context for an IP address
+Replace `your_auth_token` with one of your valid API tokens and `your_ip_address` with the IP address you want to query.
+
+```bash
+curl -H "TOKEN: your_auth_token" http://localhost:PORT/v2/context/your_ip_address
+```
+
+Make sure to replace \`PORT\` with the actual port number your API server is listening on.
+
+## Configuration
+The application can be configured through the following environment variables:
+
+- `SPUR_REDIS_CHUNK_SIZE`: Sets the chunk size for Redis operations.
+- `SPUR_REDIS_TTL`: Sets the TTL for Redis keys.
+- `SPUR_REDIS_ADDR`: Sets the Redis server address.
+- `SPUR_REDIS_PASS`: Sets the Redis password if required.
+- `SPUR_REDIS_DB`: Selects the Redis database.
+- `SPUR_REDIS_CONCURRENT_NUM`: Sets the number of concurrent operations.
+- `SPUR_REDIS_API_TOKEN`: Sets the API token for Spur.
+- `SPUR_REDIS_PORT`: Sets the port for the HTTP/HTTPS server.
+- `SPUR_REDIS_CERT_FILE` and `SPUR_REDIS_KEY_FILE`: Set the paths to your SSL certificate and key files for HTTPS support.
+- `SPUR_REDIS_LOCAL_API_AUTH_TOKENS`: Sets the API tokens for the local api server authentication.
+
+### Querying for the Data
 ```bash
 docker exec -it redis redis-cli GET 1.2.3.4
 ```
+
+Ensure all sensitive information and configurations are securely stored and not exposed unnecessarily.

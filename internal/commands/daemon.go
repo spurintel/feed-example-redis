@@ -6,13 +6,12 @@ import (
 	"feedexampleredis/internal/spur"
 	"feedexampleredis/internal/storage"
 	"fmt"
-	"strconv"
 	"time"
 
 	"log/slog"
 )
 
-func Daemon(ctx context.Context, cfg app.Config) error {
+func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis) error {
 	slog.Info("starting process")
 	defer slog.Info("stopping process")
 
@@ -22,16 +21,6 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 		"spur api client created",
 		slog.String("api_version", spurAPI.Version),
 		slog.String("base_url", spurAPI.BaseURL),
-	)
-
-	// Setup the redis client
-	ttl := time.Duration(cfg.TTL) * time.Hour
-	redisClient := storage.NewRedis(cfg.RedisAddr, cfg.RedisPass, cfg.RedisDB, ttl, cfg.ConcurrentNum, cfg.ChunkSize)
-	redisClient.Connect()
-	slog.Info(
-		"redis client created",
-		slog.String("redis_addr", cfg.RedisAddr),
-		slog.String("redis_db", strconv.Itoa(cfg.RedisDB)),
 	)
 
 	// check redis for the latest feed info, in case we restarted
@@ -48,13 +37,13 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 
 	// If we don't have the latest feed info, download and process the latest feed file to seed the initial data
 	if lastFeedInfo.JSON.Date == "" {
-		lastFeedInfo, err = spurAPI.LatestFeedInfo(ctx, spur.AnonymousResidential)
+		lastFeedInfo, err = spurAPI.LatestFeedInfo(ctx, cfg.SpurFeedType)
 		if err != nil {
 			return fmt.Errorf("error getting latest feed info: %v", err)
 		}
 
 		slog.Info("no initial data found, downloading latest feed")
-		feedStream, err := spurAPI.LatestFeed(ctx, spur.AnonymousResidential)
+		feedStream, err := spurAPI.LatestFeed(ctx, cfg.SpurFeedType)
 		if err != nil {
 			return fmt.Errorf("error getting latest feed: %v", err)
 		}
@@ -72,7 +61,12 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 		slog.Info("feed inserted into redis", slog.Int64("count", count))
 
 		// Reprocess all the realtime data from the feed date 00:00:00 until now
-		reprocessRealtime(ctx, redisClient, spurAPI, lastFeedInfo.JSON.Date)
+		if cfg.SpurRealtimeEnabled {
+			err := reprocessRealtime(ctx, redisClient, spurAPI, lastFeedInfo.JSON.Date)
+			if err != nil {
+				return fmt.Errorf("error reprocessing realtime data: %v", err)
+			}
+		}
 	}
 
 	// check for new data every minute
@@ -87,7 +81,7 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 			return ctx.Err()
 		case <-ticker.C:
 			slog.Info("checking for new full feed data")
-			latestFeedInfo, err := spurAPI.LatestFeedInfo(ctx, spur.AnonymousResidential)
+			latestFeedInfo, err := spurAPI.LatestFeedInfo(ctx, cfg.SpurFeedType)
 			if err != nil {
 				slog.Error("error getting latest feed info", "error", err.Error())
 				continue
@@ -95,17 +89,30 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 
 			// If the feed info has changed, get the new data
 			if latestFeedInfo.JSON.Date != lastFeedInfo.JSON.Date {
-				processLatestFeedFile(ctx, latestFeedInfo, redisClient, spurAPI)
+				err := processLatestFeedFile(ctx, latestFeedInfo, redisClient, spurAPI)
+				if err != nil {
+					slog.Error("error processing latest feed file", "error", err.Error())
+					continue
+				}
 				lastFeedInfo = latestFeedInfo
 
 				// Reprocess all the realtime data from the feed date 00:00:00 until now
-				reprocessRealtime(ctx, redisClient, spurAPI, latestFeedInfo.JSON.Date)
+				if cfg.SpurRealtimeEnabled {
+					err := reprocessRealtime(ctx, redisClient, spurAPI, latestFeedInfo.JSON.Date)
+					if err != nil {
+						slog.Error("error reprocessing realtime data", "error", err.Error())
+					}
+				}
 
 				// Reprocessing will take care of getting the latest realtime info, so we can skip the rest of this loop
 				continue
 			}
 
-			// Get the latest realtime info
+			// Realtime must be enabled to process realtime data
+			if !cfg.SpurRealtimeEnabled {
+				continue
+			}
+
 			slog.Info("checking for new realtime feed data")
 			latestRealtimeInfo, err := spurAPI.LatestRealtimeFeedInfo(ctx, spur.AnonymousResidential)
 			if err != nil {
@@ -115,7 +122,11 @@ func Daemon(ctx context.Context, cfg app.Config) error {
 
 			// If the realtime info has changed, merge in the new data
 			if latestRealtimeInfo.JSON.Date != lastRealtimeInfo.JSON.Date {
-				processLatestRealtimeFeedFile(ctx, latestRealtimeInfo, redisClient, spurAPI)
+				err := processLatestRealtimeFeedFile(ctx, latestRealtimeInfo, redisClient, spurAPI)
+				if err != nil {
+					slog.Error("error processing latest realtime feed file", "error", err.Error())
+					continue
+				}
 				lastRealtimeInfo = latestRealtimeInfo
 			}
 		}
