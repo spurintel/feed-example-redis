@@ -4,12 +4,16 @@ import (
 	"context"
 	"feedexampleredis/internal/app"
 	"feedexampleredis/internal/commands"
+	"feedexampleredis/internal/server"
+	"feedexampleredis/internal/storage"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -22,6 +26,7 @@ var (
 
 	// Flags
 	file string
+	api  bool
 
 	// Args
 	command string
@@ -39,6 +44,7 @@ func main() {
 	}
 
 	flag.StringVar(&file, "file", "", "path to the feed file or realtime file to process")
+	flag.BoolVar(&api, "api", false, "start the API server")
 	flag.Parse()
 
 	// Get the command from the args
@@ -60,11 +66,33 @@ func main() {
 		return signalHandler(ctx)
 	})
 
+	// Setup redis client, it is used in multiple commands
+	ttl := time.Duration(cfg.TTL) * time.Hour
+	redisClient := storage.NewRedis(cfg.RedisAddr, cfg.RedisPass, cfg.RedisDB, ttl, cfg.ConcurrentNum, cfg.ChunkSize)
+	redisClient.Connect()
+	slog.Info(
+		"redis client created",
+		slog.String("redis_addr", cfg.RedisAddr),
+		slog.String("redis_db", strconv.Itoa(cfg.RedisDB)),
+	)
+
 	// Start the main process
 	switch command {
 	case "daemon":
+		// Start the API server if the flag is set
+		if api {
+			g.Go(func() error {
+				defer cancel()
+				api := server.NewServer(cfg, redisClient)
+				if cfg.CertFile != "" && cfg.KeyFile != "" {
+					return api.StartTLS(ctx)
+				}
+				return api.Start(ctx)
+			})
+		}
 		g.Go(func() error {
-			return commands.Daemon(ctx, cfg)
+			defer cancel()
+			return commands.Daemon(ctx, cfg, redisClient)
 		})
 	case "insert":
 		// TODO
@@ -74,7 +102,7 @@ func main() {
 		}
 		g.Go(func() error {
 			defer cancel()
-			return commands.InsertFeedFile(ctx, cfg, file)
+			return commands.InsertFeedFile(ctx, file, redisClient)
 		})
 	case "merge":
 		// TODO
@@ -84,7 +112,7 @@ func main() {
 		}
 		g.Go(func() error {
 			defer cancel()
-			return commands.MergeRealtimeFile(ctx, cfg, file)
+			return commands.MergeRealtimeFile(ctx, file, redisClient)
 		})
 	default:
 		fmt.Fprintf(os.Stderr, "error: invalid command specified, it must be one of: daemon, insert, merge\n")

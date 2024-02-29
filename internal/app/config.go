@@ -1,33 +1,47 @@
 package app
 
 import (
+	"feedexampleredis/internal/spur"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 // Config - the configuration for the process, parsed from environment variables
 type Config struct {
-	ChunkSize     int
-	TTL           int
-	RedisAddr     string
-	RedisPass     string
-	RedisDB       int
-	ConcurrentNum int
-	SpurAPIToken  string
+	ChunkSize           int
+	TTL                 int
+	RedisAddr           string
+	RedisPass           string
+	RedisDB             int
+	ConcurrentNum       int
+	SpurAPIToken        string
+	SpurFeedType        spur.FeedType
+	SpurRealtimeEnabled bool
+	Port                int
+	LocalAPIAuthTokens  []string
+	CertFile            string
+	KeyFile             string
 }
 
 // parseConfig - parse the configuration from environment variables
 func ParseConfigFromEnvironment() (Config, error) {
 	cfg := Config{
-		ChunkSize:     5000,
-		TTL:           24,
-		RedisAddr:     "localhost:6379",
-		RedisPass:     "",
-		RedisDB:       0,
-		ConcurrentNum: runtime.NumCPU(),
-		SpurAPIToken:  "",
+		ChunkSize:           5000,
+		TTL:                 24,
+		RedisAddr:           "localhost:6379",
+		RedisPass:           "",
+		RedisDB:             0,
+		ConcurrentNum:       runtime.NumCPU(),
+		SpurAPIToken:        "",
+		SpurFeedType:        spur.AnonymousFeed,
+		SpurRealtimeEnabled: false,
+		Port:                8080,
+		LocalAPIAuthTokens:  nil,
+		CertFile:            "",
+		KeyFile:             "",
 	}
 
 	envChunkSize := os.Getenv("SPUR_REDIS_CHUNK_SIZE")
@@ -86,6 +100,55 @@ func ParseConfigFromEnvironment() (Config, error) {
 		cfg.SpurAPIToken = envSpurAPIToken
 	} else {
 		return Config{}, fmt.Errorf("SPUR_REDIS_API_TOKEN is required")
+	}
+
+	envSpurFeedType := os.Getenv("SPUR_REDIS_FEED_TYPE")
+	if envSpurFeedType != "" {
+		cfg.SpurFeedType = spur.FeedType(envSpurFeedType)
+	} else {
+		cfg.SpurFeedType = spur.AnonymousFeed
+	}
+
+	envSpurRealtimeEnabled := os.Getenv("SPUR_REDIS_REALTIME_ENABLED")
+	if envSpurRealtimeEnabled != "" {
+		boolSpurRealtimeEnabled, err := strconv.ParseBool(envSpurRealtimeEnabled)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid SPUR_REDIS_REALTIME_ENABLED: %v", err)
+		}
+		cfg.SpurRealtimeEnabled = boolSpurRealtimeEnabled
+	} else {
+		cfg.SpurRealtimeEnabled = false
+
+	}
+
+	envPort := os.Getenv("SPUR_REDIS_PORT")
+	if envPort != "" {
+		intPort, err := strconv.Atoi(envPort)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid SPUR_REDIS_PORT: %v", err)
+		}
+		cfg.Port = intPort
+	}
+
+	envCertFile := os.Getenv("SPUR_REDIS_CERT_FILE")
+	if envCertFile != "" {
+		cfg.CertFile = envCertFile
+	}
+
+	envKeyFile := os.Getenv("SPUR_REDIS_KEY_FILE")
+	if envKeyFile != "" {
+		cfg.KeyFile = envKeyFile
+	}
+
+	envLocalAPIAuthTokens := os.Getenv("SPUR_REDIS_LOCAL_API_AUTH_TOKENS")
+	if envLocalAPIAuthTokens != "" {
+		// Tokens are comma separated
+		parsed := strings.Split(envLocalAPIAuthTokens, ",")
+		for _, token := range parsed {
+			cfg.LocalAPIAuthTokens = append(cfg.LocalAPIAuthTokens, token)
+		}
+	} else {
+		return Config{}, fmt.Errorf("SPUR_REDIS_LOCAL_API_AUTH_TOKENS is required")
 	}
 
 	return cfg, nil
