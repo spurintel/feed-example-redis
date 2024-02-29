@@ -77,6 +77,9 @@ func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// set the content type
+	w.Header().Set("Content-Type", "application/json")
+
 	// Return the IP context as JSON
 	response, err := json.Marshal(ipContext)
 	if err != nil {
