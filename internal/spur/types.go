@@ -74,7 +74,7 @@ type Client struct {
 		Geohash string  `json:"geohash,omitempty"`
 		Density float64 `json:"density,omitempty"`
 		Skew    int     `json:"skew,omitempty"`
-	} `json:"concentration"`
+	} `json:"concentration,omitempty"`
 	Countries int `json:"countries,omitempty"`
 	Spread    int `json:"spread,omitempty"`
 	Count     int `json:"count,omitempty"`
