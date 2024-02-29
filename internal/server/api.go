@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"log/slog"
+	"net"
 	"net/http"
 )
 
@@ -45,6 +46,18 @@ func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
 	ipAddress := vars["ipAddress"]
 
 	slog.Info("received request", "ip_address", ipAddress)
+
+	// Validate the IP address
+	if ipAddress == "" {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	parsedIP := net.ParseIP(ipAddress)
+	if parsedIP == nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
 
 	// Query redis for the IP context
 	ipContext, err := s.r.GetByIP(r.Context(), ipAddress)
