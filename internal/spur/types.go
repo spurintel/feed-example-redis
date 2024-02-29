@@ -47,51 +47,51 @@ func (e *FeedError) Error() string {
 }
 
 type IPContext struct {
-	Location       Location `json:"location"`
-	IP             string   `json:"ip"`
-	Organization   string   `json:"organization"`
-	Infrastructure string   `json:"infrastructure"`
-	Tunnels        []Tunnel `json:"tunnels"`
-	Services       []string `json:"services"`
-	Risks          []string `json:"risks"`
-	AS             AS       `json:"as"`
-	Client         Client   `json:"client"`
+	Location       Location `json:"location,omitempty"`
+	IP             string   `json:"ip,omitempty"`
+	Organization   string   `json:"organization,omitempty"`
+	Infrastructure string   `json:"infrastructure,omitempty"`
+	Tunnels        []Tunnel `json:"tunnels,omitempty"`
+	Services       []string `json:"services,omitempty"`
+	Risks          []string `json:"risks,omitempty"`
+	AS             AS       `json:"as,omitempty"`
+	Client         Client   `json:"client,omitempty"`
 }
 
 type AS struct {
-	Organization string `json:"organization"`
-	Number       int    `json:"number"`
+	Organization string `json:"organization,omitempty"`
+	Number       int    `json:"number,omitempty"`
 }
 
 type Client struct {
-	Behaviors     []string `json:"behaviors"`
-	Types         []string `json:"types"`
-	Proxies       []string `json:"proxies"`
+	Behaviors     []string `json:"behaviors,omitempty"`
+	Types         []string `json:"types,omitempty"`
+	Proxies       []string `json:"proxies,omitempty"`
 	Concentration struct {
-		Country string  `json:"country"`
-		State   string  `json:"state"`
-		City    string  `json:"city"`
-		Geohash string  `json:"geohash"`
-		Density float64 `json:"density"`
-		Skew    int     `json:"skew"`
-	} `json:"concentration"`
-	Countries int `json:"countries"`
-	Spread    int `json:"spread"`
-	Count     int `json:"count"`
+		Country string  `json:"country,omitempty"`
+		State   string  `json:"state,omitempty"`
+		City    string  `json:"city,omitempty"`
+		Geohash string  `json:"geohash,omitempty"`
+		Density float64 `json:"density,omitempty"`
+		Skew    int     `json:"skew,omitempty"`
+	} `json:"concentration,omitempty"`
+	Countries int `json:"countries,omitempty"`
+	Spread    int `json:"spread,omitempty"`
+	Count     int `json:"count,omitempty"`
 }
 
 type Location struct {
-	Country string `json:"country"`
-	State   string `json:"state"`
-	City    string `json:"city"`
+	Country string `json:"country,omitempty"`
+	State   string `json:"state,omitempty"`
+	City    string `json:"city,omitempty"`
 }
 
 type Tunnel struct {
-	Operator  string   `json:"operator"`
-	Type      string   `json:"type"`
-	Entries   []string `json:"entries"`
-	Exits     []string `json:"exits"`
-	Anonymous bool     `json:"anonymous"`
+	Operator  string   `json:"operator,omitempty"`
+	Type      string   `json:"type,omitempty"`
+	Entries   []string `json:"entries,omitempty"`
+	Exits     []string `json:"exits,omitempty"`
+	Anonymous bool     `json:"anonymous,omitempty"`
 }
 
 // Deep merging for each struct
