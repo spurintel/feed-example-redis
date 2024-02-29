@@ -56,6 +56,25 @@ func (r *Redis) Close() error {
 	return r.client.Close()
 }
 
+// GetByIP - get an IP context from Redis where the IP is the key
+func (r *Redis) GetByIP(ctx context.Context, ip string) (*spur.IPContext, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	val, err := r.client.Get(ctx, ip).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var ipctx spur.IPContext
+	err = json.Unmarshal([]byte(val), &ipctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ipctx, nil
+}
+
 // LatestFeedInfo - get the latest feed info from Redis
 func (r *Redis) GetLatestFeedInfo(ctx context.Context) (*spur.FeedInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
