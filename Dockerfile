@@ -7,4 +7,4 @@ ENV SPUR_REDIS_CONCURRENT_NUM=$SPUR_REDIS_CONCURRENT_NUM
 
 COPY ./target/spurredis_linux_amd64 /root/spurredis
 
-CMD ["/root/spurredis", "daemon"]
+CMD ["/root/spurredis", "-api", "daemon"]
