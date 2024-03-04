@@ -41,6 +41,7 @@ services:
       - "8080:8080"
     environment:
       SPUR_REDIS_API_TOKEN: ${SPUR_REDIS_API_TOKEN}
+      SPUR_REDIS_FEED_TYPE: anonymous
       SPUR_REDIS_CHUNK_SIZE: 5000
       SPUR_REDIS_CONCURRENT_NUM: 4
       SPUR_REDIS_ADDR: redis:6379
@@ -49,7 +50,7 @@ services:
 
 Then run the following command to test the API:
 ```bash
-curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/1.1.1.1 | jq
+curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/${YOUR_IP} | jq
 ```
 
 ## Running
@@ -57,9 +58,18 @@ You have two options for running the application: building the binary directly w
 
 ### Option 1 - Run with Docker Compose
 ```bash
-# Build and run with Docker Compose
+# Clone the repository
+git clone https://github.com/spurintel/feed-example-redis.git
+
+# Build the binary
 cd feed-example-redis
-make run
+make bin
+
+# Set the environment variables, minimum required is the Spur token
+export SPUR_REDIS_API_TOKEN=your_spur_token
+
+# Start the application with Docker Compose
+docker-compose up
 ```
 
 ### Option 2 - Build and run the binary directly
