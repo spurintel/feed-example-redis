@@ -49,7 +49,7 @@ services:
 
 Then run the following command to test the API:
 ```bash
-curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/1.1.1.1 | jq
+curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/${YOUR_IP} | jq
 ```
 
 ## Running
