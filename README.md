@@ -47,6 +47,11 @@ services:
       SPUR_REDIS_LOCAL_API_AUTH_TOKENS: testtoken1,testtoken2
 ```
 
+Then run the following command to test the API:
+```bash
+curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/1.1.1.1 | jq
+```
+
 ## Running
 You have two options for running the application: building the binary directly with make or using Docker Compose for containerized deployment.
 
