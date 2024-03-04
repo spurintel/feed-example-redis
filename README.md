@@ -13,6 +13,40 @@ To run this program, you will need:
 * Docker for managing containers.
 * A Spur token with access to feeds and optionally real-time data. This should be exposed in your environment as \`SPUR_REDIS_API_TOKEN\`.
 
+## Quickstart
+To just run the app with a redis server, you can use the following Docker Compose file. This will start a Redis server and the feed-example-redis app. 
+Please see the [Configuration](#configuration) section for more information on the environment variables.
+NOTE: You will need to set the `SPUR_REDIS_API_TOKEN` environment variable to your Spur token.
+
+```bash
+version: '3'
+
+services:
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  spurredis:
+    image: spurintelligence/spurredis:latest
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPUR_REDIS_API_TOKEN: ${SPUR_REDIS_API_TOKEN}
+      SPUR_REDIS_CHUNK_SIZE: 5000
+      SPUR_REDIS_CONCURRENT_NUM: 4
+      SPUR_REDIS_ADDR: redis:6379
+      SPUR_REDIS_LOCAL_API_AUTH_TOKENS: testtoken1,testtoken2
+```
+
 ## Running
 You have two options for running the application: building the binary directly with make or using Docker Compose for containerized deployment.
 
@@ -68,6 +102,7 @@ The application can be configured through the following environment variables:
 - `SPUR_REDIS_DB`: Selects the Redis database.
 - `SPUR_REDIS_CONCURRENT_NUM`: Sets the number of concurrent operations.
 - `SPUR_REDIS_API_TOKEN`: Sets the API token for Spur.
+- `SPUR_REDIS_FEED_TYPE`: Sets the feed type for Spur: anonymous, anonymous-residential.
 - `SPUR_REDIS_PORT`: Sets the port for the HTTP/HTTPS server.
 - `SPUR_REDIS_CERT_FILE` and `SPUR_REDIS_KEY_FILE`: Set the paths to your SSL certificate and key files for HTTPS support.
 - `SPUR_REDIS_LOCAL_API_AUTH_TOKENS`: Sets the API tokens for the local api server authentication.
