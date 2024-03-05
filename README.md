@@ -13,6 +13,11 @@ To run this program, you will need:
 * Docker for managing containers.
 * A Spur token with access to feeds and optionally real-time data. This should be exposed in your environment as \`SPUR_REDIS_API_TOKEN\`.
 
+### System Requirements
+
+* Anonymous feeds require 5GB of memory.
+* Anonymous residential feeds require a minimum 18GB of memory.
+
 ## Quickstart
 To just run the app with a redis server, you can use the following Docker Compose file. This will start a Redis server and the feed-example-redis app. 
 Please see the [Configuration](#configuration) section for more information on the environment variables.
