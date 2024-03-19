@@ -34,3 +34,12 @@ lint:
 run: bin-linux
 run:
 	docker compose up
+
+publish-docker-linux: bin-linux
+publish-docker-linux:
+	docker build -t spurredis:latest --platform linux/amd64 .
+	docker tag spurredis:latest spurredis:$(VERSION)
+	docker tag spurredis:latest spurredis:$(COMMIT)
+	docker push spurredis:latest
+	docker push spurredis:$(VERSION)
+	docker push spurredis:$(COMMIT)
