@@ -1,0 +1,10 @@
+.env
+.gitignore
+.dockerignore
+.idea
+node_modules
+compose.yaml
+target
+LICENSE
+Makefile
+README.md
