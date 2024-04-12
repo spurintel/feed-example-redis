@@ -115,17 +115,21 @@ Make sure to replace \`PORT\` with the actual port number your API server is lis
 ## Configuration
 The application can be configured through the following environment variables:
 
-- `SPUR_REDIS_CHUNK_SIZE`: Sets the chunk size for Redis operations.
-- `SPUR_REDIS_TTL`: Sets the TTL for Redis keys.
-- `SPUR_REDIS_ADDR`: Sets the Redis server address.
-- `SPUR_REDIS_PASS`: Sets the Redis password if required.
-- `SPUR_REDIS_DB`: Selects the Redis database.
-- `SPUR_REDIS_CONCURRENT_NUM`: Sets the number of concurrent operations.
-- `SPUR_REDIS_API_TOKEN`: Sets the API token for Spur.
-- `SPUR_REDIS_FEED_TYPE`: Sets the feed type for Spur: anonymous, anonymous-residential.
-- `SPUR_REDIS_PORT`: Sets the port for the HTTP/HTTPS server.
-- `SPUR_REDIS_CERT_FILE` and `SPUR_REDIS_KEY_FILE`: Set the paths to your SSL certificate and key files for HTTPS support.
-- `SPUR_REDIS_LOCAL_API_AUTH_TOKENS`: Sets the API tokens for the local api server authentication.
+- `SPUR_REDIS_CHUNK_SIZE`: Sets the chunk size for Redis operations. (default: 5000)
+- `SPUR_REDIS_TTL`: Sets the TTL for Redis keys. (default: 24)
+- `SPUR_REDIS_ADDR`: Sets the Redis server address. (default: "localhost:6379")
+- `SPUR_REDIS_PASS`: Sets the Redis password. (default: "")
+- `SPUR_REDIS_DB`: Sets the Redis DB. (default: 0)
+- `SPUR_REDIS_CONCURRENT_NUM`: Sets the number of concurrent processes. (default: number of CPUs)
+- `SPUR_REDIS_API_TOKEN`: Sets the Spur API token. (Required)
+- `SPUR_REDIS_FEED_TYPE`: Sets the Spur feed type. (default: "anonymous")
+- `SPUR_REDIS_REALTIME_ENABLED`: Sets whether realtime feed is enabled. (default: false)
+- `SPUR_REDIS_PORT`: Sets the port for the application. (default: 8080)
+- `SPUR_REDIS_CERT_FILE`: Specifies the TLS Cert file. (default: "")
+- `SPUR_REDIS_KEY_FILE`: Specifies the TLS Key file. (default: "")
+- `SPUR_REDIS_LOCAL_API_AUTH_TOKENS`: Sets the local API Auth tokens. (Required; Tokens are comma separated)
+
+Please note: For SPUR_REDIS_API_TOKEN and SPUR_REDIS_LOCAL_API_AUTH_TOKENS, if these are not set, the application will not run.
 
 ### Querying for the Data
 ```bash

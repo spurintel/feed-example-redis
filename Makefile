@@ -34,3 +34,7 @@ lint:
 run: bin-linux
 run:
 	docker compose up
+
+publish-docker:
+	docker buildx create --use
+	docker buildx build --platform=linux/amd64,linux/arm64,linux/arm64/v8 -t spurintelligence/spurredis:latest --push .
