@@ -24,6 +24,7 @@ type Config struct {
 	LocalAPIAuthTokens  []string
 	CertFile            string
 	KeyFile             string
+	IPv6NetworkFeedBeta bool
 }
 
 // parseConfig - parse the configuration from environment variables
@@ -149,6 +150,17 @@ func ParseConfigFromEnvironment() (Config, error) {
 		}
 	} else {
 		return Config{}, fmt.Errorf("SPUR_REDIS_LOCAL_API_AUTH_TOKENS is required")
+	}
+
+	envIPv6Enabled := os.Getenv("SPUR_REDIS_IPV6_NETWORK_FEED_BETA")
+	if envIPv6Enabled != "" {
+		boolIPv6Enabled, err := strconv.ParseBool(envIPv6Enabled)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid SPUR_REDIS_IPV6_NETWORK_FEED_BETA: %v", err)
+		}
+		cfg.IPv6NetworkFeedBeta = boolIPv6Enabled
+	} else {
+		cfg.IPv6NetworkFeedBeta = false
 	}
 
 	return cfg, nil

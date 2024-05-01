@@ -41,6 +41,7 @@ func main() {
 	cfg, err := app.ParseConfigFromEnvironment()
 	if err != nil {
 		fmt.Println("error parsing config:", err)
+		os.Exit(1)
 	}
 
 	flag.StringVar(&file, "file", "", "path to the feed file or realtime file to process")
@@ -76,6 +77,9 @@ func main() {
 		slog.String("redis_db", strconv.Itoa(cfg.RedisDB)),
 	)
 
+	// Setup ipv6 lookup client
+	v6Client := storage.NewMMDB()
+
 	// Start the main process
 	switch command {
 	case "daemon":
@@ -83,7 +87,7 @@ func main() {
 		if api {
 			g.Go(func() error {
 				defer cancel()
-				api := server.NewServer(cfg, redisClient)
+				api := server.NewServer(cfg, redisClient, v6Client)
 				if cfg.CertFile != "" && cfg.KeyFile != "" {
 					return api.StartTLS(ctx)
 				}
@@ -92,7 +96,7 @@ func main() {
 		}
 		g.Go(func() error {
 			defer cancel()
-			return commands.Daemon(ctx, cfg, redisClient)
+			return commands.Daemon(ctx, cfg, redisClient, v6Client)
 		})
 	case "insert":
 		// TODO
