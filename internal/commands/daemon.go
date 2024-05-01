@@ -110,7 +110,8 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6C
 				continue
 			}
 
-			if v6Client != nil && cfg.IPv6NetworkFeedBeta {
+			// Check for new ipv6 data if we have a client, supported feed type, and beta is enabled
+			if v6Client != nil && v6FeedType != spur.FeedTypeUnknown && cfg.IPv6NetworkFeedBeta {
 				latestV6Info, err := spurAPI.LatestFeedInfo(ctx, v6FeedType)
 				if err != nil {
 					slog.Error("error getting latest ipv6 feed info", "error", err.Error())

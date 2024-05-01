@@ -17,6 +17,7 @@ const (
 	AnonymousResidential     FeedType = "anonymous-residential"
 	AnonymousResidentialIPv6 FeedType = "anonymous-residential-ipv6"
 	IPSummaryFeed            FeedType = "ipsummary"
+	FeedTypeUnknown          FeedType = "unknown"
 )
 
 func (ft FeedType) V6FeedType() (FeedType, error) {
@@ -26,7 +27,7 @@ func (ft FeedType) V6FeedType() (FeedType, error) {
 	case AnonymousResidential:
 		return AnonymousResidentialIPv6, nil
 	default:
-		return "", ErrorNoV6Feed
+		return FeedTypeUnknown, ErrorNoV6Feed
 	}
 }
 
