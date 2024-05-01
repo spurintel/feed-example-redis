@@ -5,7 +5,10 @@ COPY go.mod go.sum .
 RUN go mod download
 COPY . .
 ARG TARGETOS TARGETARCH
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /out/spurredis ./cmd/spurredis
+ARG VERSION
+ARG COMMIT
+ARG DATE
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath  -ldflags "-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o /out/spurredis ./cmd/spurredis
 
 # Final stage
 FROM alpine

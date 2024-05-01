@@ -16,13 +16,15 @@ import (
 type Server struct {
 	cfg app.Config
 	r   *storage.Redis
+	v6  *storage.MMDB
 }
 
 // NewServer creates a new Server instance.
-func NewServer(cfg app.Config, r *storage.Redis) *Server {
+func NewServer(cfg app.Config, r *storage.Redis, v6 *storage.MMDB) *Server {
 	return &Server{
 		cfg: cfg,
 		r:   r,
+		v6:  v6,
 	}
 }
 
@@ -59,34 +61,63 @@ func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query redis for the IP context
-	ipContext, err := s.r.GetByIP(r.Context(), ipAddress)
-	if err != nil {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
-	}
+	var response []byte
+	if parsedIP.To4() != nil {
+		// Query redis for the IP context
+		ipContext, err := s.r.GetByIP(r.Context(), ipAddress)
+		if err != nil {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 
-	// If there is no ip in the context, return a 404
-	if ipContext == nil {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
-	}
+		// If there is no ip in the context, return a 404
+		if ipContext == nil {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 
-	if ipContext.IP == "" {
-		http.Error(w, "Not Found", http.StatusNotFound)
-		return
+		if ipContext.IP == "" {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		// Return the IP context as JSON
+		response, err = json.Marshal(ipContext)
+		if err != nil {
+			slog.Error("error marshalling IP context", "error", err.Error())
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// Query the MMDB for the IP context
+		ipContext, err := s.v6.GetIP(parsedIP)
+		if err != nil {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		// If there is no ip in the context, return a 404
+		if ipContext == nil {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		if ipContext.Network == "" {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		// Return the IP context as JSON
+		response, err = json.Marshal(ipContext)
+		if err != nil {
+			slog.Error("error marshalling IP context", "error", err.Error())
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// set the content type
 	w.Header().Set("Content-Type", "application/json")
-
-	// Return the IP context as JSON
-	response, err := json.Marshal(ipContext)
-	if err != nil {
-		slog.Error("error marshalling IP context", "error", err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
