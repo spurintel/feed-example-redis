@@ -128,6 +128,7 @@ The application can be configured through the following environment variables:
 - `SPUR_REDIS_CERT_FILE`: Specifies the TLS Cert file. (default: "")
 - `SPUR_REDIS_KEY_FILE`: Specifies the TLS Key file. (default: "")
 - `SPUR_REDIS_LOCAL_API_AUTH_TOKENS`: Sets the local API Auth tokens. (Required; Tokens are comma separated)
+- `SPUR_REDIS_IPV6_NETWORK_FEED_BETA`: Also include data from IPv6 network info feeds (BETA). May increase resource requirements.
 
 Please note: For SPUR_REDIS_API_TOKEN and SPUR_REDIS_LOCAL_API_AUTH_TOKENS, if these are not set, the application will not run.
 

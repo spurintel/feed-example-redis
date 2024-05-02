@@ -11,7 +11,7 @@ import (
 	"log/slog"
 )
 
-func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis) error {
+func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6Client *storage.MMDB) error {
 	slog.Info("starting process")
 	defer slog.Info("stopping process")
 
@@ -69,6 +69,29 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis) err
 		}
 	}
 
+	// Since ipv6 is in memory and not in redis, we need to reprocess it every time the daemon starts
+	v6FeedType, err := cfg.SpurFeedType.V6FeedType()
+	if err == nil && cfg.IPv6NetworkFeedBeta {
+		latestV6Info, err := spurAPI.LatestFeedInfo(ctx, v6FeedType)
+		if err != nil {
+			slog.Warn("error getting latest ipv6 feed info", "error", err.Error())
+		} else {
+			v6Client.SetLastFeedInfo(latestV6Info)
+		}
+
+		ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
+		if err != nil {
+			slog.Warn("error getting latest ipv6 feed", "error", err.Error())
+		} else {
+			count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+			if err != nil {
+				slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+			} else {
+				slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+			}
+		}
+	}
+
 	// check for new data every minute
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -85,6 +108,32 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis) err
 			if err != nil {
 				slog.Error("error getting latest feed info", "error", err.Error())
 				continue
+			}
+
+			// Check for new ipv6 data if we have a client, supported feed type, and beta is enabled
+			if v6Client != nil && v6FeedType != spur.FeedTypeUnknown && cfg.IPv6NetworkFeedBeta {
+				latestV6Info, err := spurAPI.LatestFeedInfo(ctx, v6FeedType)
+				if err != nil {
+					slog.Error("error getting latest ipv6 feed info", "error", err.Error())
+				} else {
+					v6Client.SetLastFeedInfo(latestV6Info)
+				}
+
+				if latestV6Info.JSON.Date != v6Client.GetLastFeedInfo().JSON.Date {
+					ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
+					if err != nil {
+						slog.Warn("error getting latest ipv6 feed", "error", err.Error())
+					} else {
+						count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+						if err != nil {
+							slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+						} else {
+							slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+						}
+
+						slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+					}
+				}
 			}
 
 			// If the feed info has changed, get the new data
