@@ -165,3 +165,9 @@ func ParseConfigFromEnvironment() (Config, error) {
 
 	return cfg, nil
 }
+
+// String
+func (c Config) String() string {
+	return fmt.Sprintf("ChunkSize: %d, TTL: %d, RedisAddr: %s, RedisPass: %s, RedisDB: %d, ConcurrentNum: %d, SpurAPIToken: %s, SpurFeedType: %s, SpurRealtimeEnabled: %t, Port: %d, LocalAPIAuthTokens: %v, CertFile: %s, KeyFile: %s, IPv6NetworkFeedBeta: %t",
+		c.ChunkSize, c.TTL, c.RedisAddr, c.RedisPass, c.RedisDB, c.ConcurrentNum, c.SpurAPIToken, c.SpurFeedType, c.SpurRealtimeEnabled, c.Port, c.LocalAPIAuthTokens, c.CertFile, c.KeyFile, c.IPv6NetworkFeedBeta)
+}
