@@ -247,7 +247,7 @@ func processFeedLines(ctx context.Context, chunkSize int, ttl time.Duration, wor
 
 		buffer++
 		key := record.IP
-		pipe.Set(ctx, key, string(line), time.Duration(ttl)*time.Hour)
+		pipe.Set(ctx, key, string(line), ttl)
 		if buffer >= chunkSize {
 			result, err := pipe.Exec(ctx)
 			if err != nil {
@@ -337,7 +337,7 @@ func processMergeLines(ctx context.Context, chunkSize int, ttl time.Duration, wo
 			log.Fatalf("Worker %d: Failed to serialize json: %v\n", workerID, err)
 			continue
 		}
-		pipe.Set(ctx, key, string(data), time.Duration(ttl)*time.Hour)
+		pipe.Set(ctx, key, string(data), ttl)
 		if buffer >= chunkSize {
 			// fmt.Printf("\r\nWorker %d: Flushing (%d)", workerID, count)
 			_, err = pipe.Exec(ctx)

@@ -116,7 +116,7 @@ Make sure to replace \`PORT\` with the actual port number your API server is lis
 The application can be configured through the following environment variables:
 
 - `SPUR_REDIS_CHUNK_SIZE`: Sets the chunk size for Redis operations. (default: 5000)
-- `SPUR_REDIS_TTL`: Sets the TTL for Redis keys. (default: 24)
+- `SPUR_REDIS_TTL`: Sets the TTL (in hours) for Redis keys. (default: 24)
 - `SPUR_REDIS_ADDR`: Sets the Redis server address. (default: "localhost:6379")
 - `SPUR_REDIS_PASS`: Sets the Redis password. (default: "")
 - `SPUR_REDIS_DB`: Sets the Redis DB. (default: 0)

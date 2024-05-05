@@ -44,6 +44,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	slog.Info(
+		"running with config",
+		slog.Int("chunk_size", cfg.ChunkSize),
+		slog.Int("ttl", cfg.TTL),
+		slog.String("redis_addr", cfg.RedisAddr),
+		slog.Int("redis_db", cfg.RedisDB),
+		slog.Int("concurrent_num", cfg.ConcurrentNum),
+		slog.String("spur_feed_type", string(cfg.SpurFeedType)),
+		slog.Bool("spur_realtime_enabled", cfg.SpurRealtimeEnabled),
+		slog.Int("port", cfg.Port),
+		slog.String("cert_file", cfg.CertFile),
+		slog.String("key_file", cfg.KeyFile),
+		slog.Bool("ipv6_network_feed_beta", cfg.IPv6NetworkFeedBeta),
+	)
+
 	flag.StringVar(&file, "file", "", "path to the feed file or realtime file to process")
 	flag.BoolVar(&api, "api", false, "start the API server")
 	flag.Parse()
