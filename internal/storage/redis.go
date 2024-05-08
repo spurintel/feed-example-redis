@@ -229,6 +229,10 @@ func readLines(ctx context.Context, r io.Reader, concurrency int, chunkSize int)
 			copy(b, line)
 			lines <- b
 		}
+
+		if err := scanner.Err(); err != nil {
+			slog.Error("error reading from scanner", "error", err.Error())
+		}
 	}()
 	return lines
 }

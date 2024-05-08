@@ -35,7 +35,7 @@ func ParseConfigFromEnvironment() (Config, error) {
 		RedisAddr:           "localhost:6379",
 		RedisPass:           "",
 		RedisDB:             0,
-		ConcurrentNum:       runtime.NumCPU(),
+		ConcurrentNum:       1,
 		SpurAPIToken:        "",
 		SpurFeedType:        spur.AnonymousFeed,
 		SpurRealtimeEnabled: false,
@@ -105,7 +105,11 @@ func ParseConfigFromEnvironment() (Config, error) {
 
 	envSpurFeedType := os.Getenv("SPUR_REDIS_FEED_TYPE")
 	if envSpurFeedType != "" {
-		cfg.SpurFeedType = spur.FeedType(envSpurFeedType)
+		feedType := spur.FeedTypeFromString(envSpurFeedType)
+		if feedType == spur.FeedTypeUnknown {
+			return Config{}, fmt.Errorf("invalid SPUR_REDIS_FEED_TYPE: %s", envSpurFeedType)
+		}
+		cfg.SpurFeedType = feedType
 	} else {
 		cfg.SpurFeedType = spur.AnonymousFeed
 	}
