@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -18,7 +19,9 @@ func NewAPI(baseURL, version, token string) *API {
 }
 
 func (api *API) LatestFeedInfo(ctx context.Context, feedType FeedType) (*FeedInfo, error) {
-	req, err := api.constructSpurHttpRequest(ctx, latestFeedInfoUrl(api.BaseURL, api.Version, string(feedType)))
+	url := latestFeedInfoUrl(api.BaseURL, api.Version, string(feedType))
+	slog.Info("getting latest feed info", slog.String("url", url))
+	req, err := api.constructSpurHttpRequest(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +48,22 @@ func (api *API) LatestFeedInfo(ctx context.Context, feedType FeedType) (*FeedInf
 		return nil, err
 	}
 
+	slog.Info(
+		"latest feed info",
+		slog.String("feed_type", string(feedType)),
+		slog.String("date", feedInfo.JSON.Date),
+		slog.String("available_at", feedInfo.JSON.AvailableAt.Format(time.RFC3339)),
+		slog.String("expires_at", feedInfo.JSON.Date),
+		slog.String("location", feedInfo.JSON.Location),
+	)
+
 	return &feedInfo, nil
 }
 
 func (api *API) LatestFeed(ctx context.Context, feedType FeedType) (io.ReadCloser, error) {
-	req, err := api.constructSpurHttpRequest(ctx, latestFeedUrl(api.BaseURL, api.Version, string(feedType)))
+	url := latestFeedUrl(api.BaseURL, api.Version, string(feedType))
+	slog.Info("getting latest feed", slog.String("url", url))
+	req, err := api.constructSpurHttpRequest(ctx, url)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +88,7 @@ func (api *API) LatestFeed(ctx context.Context, feedType FeedType) (io.ReadClose
 
 func (api *API) LatestRealtimeFeedInfo(ctx context.Context, feedType FeedType) (*RealtimeFeedInfo, error) {
 	url := latestRealtimeFeedInfoUrl(api.BaseURL, api.Version, string(feedType))
+	slog.Info("getting latest realtime feed info", slog.String("url", url))
 	req, err := api.constructSpurHttpRequest(ctx, url)
 	if err != nil {
 		return nil, err
@@ -101,11 +116,19 @@ func (api *API) LatestRealtimeFeedInfo(ctx context.Context, feedType FeedType) (
 		return nil, err
 	}
 
+	slog.Info(
+		"latest feed info",
+		slog.String("feed_type", string(feedType)),
+		slog.String("date", feedInfo.JSON.Date.Format(time.RFC3339)),
+		slog.String("location", feedInfo.JSON.Location),
+	)
+
 	return &feedInfo, nil
 }
 
 func (api *API) LatestRealtimeFeed(ctx context.Context, feedType FeedType) (io.ReadCloser, error) {
 	url := latestRealtimeFeedUrl(api.BaseURL, api.Version, string(feedType))
+	slog.Info("getting latest realtime feed", slog.String("url", url))
 	req, err := api.constructSpurHttpRequest(ctx, url)
 	if err != nil {
 		return nil, err
@@ -131,6 +154,7 @@ func (api *API) LatestRealtimeFeed(ctx context.Context, feedType FeedType) (io.R
 
 func (api *API) RealtimeFeed(ctx context.Context, feedType FeedType, t time.Time) (io.ReadCloser, error) {
 	url := realtimeFeedUrl(api.BaseURL, api.Version, string(feedType), t)
+	slog.Info("getting realtime feed", slog.String("url", url))
 	req, err := api.constructSpurHttpRequest(ctx, url)
 	if err != nil {
 		return nil, err

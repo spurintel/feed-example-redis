@@ -261,7 +261,9 @@ func reprocessRealtime(ctx context.Context, redisClient *storage.Redis, spurAPI 
 
 		count, err := redisClient.StreamingMergeInsert(ctx, realtimeFeedStream)
 		if err != nil {
-			return fmt.Errorf("error inserting realtime feed into redis: %v", err)
+			slog.Error("error inserting realtime feed into redis", "error", err.Error())
+			currentTime = currentTime.Add(5 * time.Minute)
+			continue
 		}
 
 		currentTime = currentTime.Add(5 * time.Minute)

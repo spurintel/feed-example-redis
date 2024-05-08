@@ -20,6 +20,24 @@ const (
 	FeedTypeUnknown          FeedType = "unknown"
 )
 
+// FeedTypeFromString - convert string to FeedType
+func FeedTypeFromString(s string) FeedType {
+	switch s {
+	case "anonymous":
+		return AnonymousFeed
+	case "anonymous-ipv6":
+		return AnonymousFeedIPV6
+	case "anonymous-residential":
+		return AnonymousResidential
+	case "anonymous-residential-ipv6":
+		return AnonymousResidentialIPv6
+	case "ipsummary":
+		return IPSummaryFeed
+	default:
+		return FeedTypeUnknown
+	}
+}
+
 func (ft FeedType) V6FeedType() (FeedType, error) {
 	switch ft {
 	case AnonymousFeed:
