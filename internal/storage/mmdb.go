@@ -69,8 +69,8 @@ func (m *MMDB) StreamingFeedInsert(ctx context.Context, rc io.ReadCloser) (int64
 
 	// Read the feed input line by line, each line is a JSON object which can be parsed into a *spur.IPContextV6
 	scanner := bufio.NewScanner(gzr)
-	buf := make([]byte, 64*1024)   // 64KB buffer
-	scanner.Buffer(buf, 1024*1024) // 1MB maximum token size
+	scanBuf := make([]byte, 64*1024)   // 64KB buffer
+	scanner.Buffer(scanBuf, 1024*1024) // 1MB maximum token size
 	var count int64
 	for scanner.Scan() {
 		var ipCtx spur.IPContextV6
