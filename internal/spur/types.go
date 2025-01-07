@@ -139,7 +139,7 @@ type Tunnel struct {
 	Type      string   `json:"type,omitempty" maxminddb:"type"`
 	Entries   []string `json:"entries,omitempty" maxminddb:"entries"`
 	Exits     []string `json:"exits,omitempty" maxminddb:"exits"`
-	Anonymous bool     `json:"anonymous,omitempty" maxminddb:"anonymous"`
+	Anonymous bool     `json:"anonymous" maxminddb:"anonymous"`
 }
 
 func (ipCtx IPContextV6) ToMMDB() mmdbtype.Map {
