@@ -219,6 +219,8 @@ func readLines(ctx context.Context, r io.Reader, concurrency int, chunkSize int)
 	go func() {
 		defer close(lines)
 		scanner := bufio.NewScanner(r)
+		buf := make([]byte, 64*1024)   // 64KB buffer
+		scanner.Buffer(buf, 1024*1024) // 1MB maximum token size
 		for scanner.Scan() {
 			if ctx.Err() != nil {
 				return
