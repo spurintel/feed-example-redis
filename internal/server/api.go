@@ -6,25 +6,28 @@ import (
 	"feedexampleredis/internal/app"
 	"feedexampleredis/internal/storage"
 	"fmt"
-	"github.com/gorilla/mux"
 	"log/slog"
 	"net"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 // Server represents the API server.
 type Server struct {
-	cfg app.Config
-	r   *storage.Redis
-	v6  *storage.MMDB
+	cfg   app.Config
+	r     *storage.Redis
+	v6    *storage.MMDB
+	ipgeo *storage.MMDB
 }
 
 // NewServer creates a new Server instance.
-func NewServer(cfg app.Config, r *storage.Redis, v6 *storage.MMDB) *Server {
+func NewServer(cfg app.Config, r *storage.Redis, v6 *storage.MMDB, ipgeo *storage.MMDB) *Server {
 	return &Server{
-		cfg: cfg,
-		r:   r,
-		v6:  v6,
+		cfg:   cfg,
+		r:     r,
+		v6:    v6,
+		ipgeo: ipgeo,
 	}
 }
 
@@ -66,19 +69,14 @@ func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
 		// Query redis for the IP context
 		ipContext, err := s.r.GetByIP(r.Context(), ipAddress)
 		if err != nil {
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
+			// Redis lookup failed, try ipgeo MMDB as fallback
+			slog.Info("redis lookup failed, trying ipgeo fallback", "ip", ipAddress, "error", err.Error())
 
-		// If there is no ip in the context, return a 404
-		if ipContext == nil {
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
-
-		if ipContext.IP == "" {
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
+			ipContext, err = s.ipgeo.GetByIP(r.Context(), ipAddress)
+			if err != nil {
+				http.Error(w, "Not Found", http.StatusNotFound)
+				return
+			}
 		}
 
 		// Return the IP context as JSON

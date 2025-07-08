@@ -2,8 +2,9 @@ package spur
 
 import (
 	"errors"
-	"github.com/maxmind/mmdbwriter/mmdbtype"
 	"time"
+
+	"github.com/maxmind/mmdbwriter/mmdbtype"
 )
 
 // FeedType - enum for feed types: anonymous, anonymous-residential, ipsummary
@@ -17,6 +18,7 @@ const (
 	AnonymousResidential     FeedType = "anonymous-residential"
 	AnonymousResidentialIPv6 FeedType = "anonymous-residential-ipv6"
 	IPSummaryFeed            FeedType = "ipsummary"
+	IPGeo                    FeedType = "ipgeo"
 	FeedTypeUnknown          FeedType = "unknown"
 )
 
@@ -33,6 +35,8 @@ func FeedTypeFromString(s string) FeedType {
 		return AnonymousResidentialIPv6
 	case "ipsummary":
 		return IPSummaryFeed
+	case "ipgeo":
+		return IPGeo
 	default:
 		return FeedTypeUnknown
 	}
@@ -44,6 +48,8 @@ func (ft FeedType) V6FeedType() (FeedType, error) {
 		return AnonymousFeedIPV6, nil
 	case AnonymousResidential:
 		return AnonymousResidentialIPv6, nil
+	case IPGeo:
+		return IPGeo, nil
 	default:
 		return FeedTypeUnknown, ErrorNoV6Feed
 	}
@@ -91,7 +97,7 @@ type IPContext struct {
 	Services       []string `json:"services,omitempty"`
 	Risks          []string `json:"risks,omitempty"`
 	AS             AS       `json:"as,omitempty"`
-	Client         Client   `json:"client,omitempty"`
+	Client         *Client  `json:"client,omitempty"`
 }
 
 type IPContextV6 struct {
@@ -112,20 +118,22 @@ type AS struct {
 }
 
 type Client struct {
-	Behaviors     []string `json:"behaviors,omitempty" maxminddb:"behaviors"`
-	Types         []string `json:"types,omitempty" maxminddb:"types"`
-	Proxies       []string `json:"proxies,omitempty" maxminddb:"proxies"`
-	Concentration struct {
-		Country string  `json:"country,omitempty" maxminddb:"country"`
-		State   string  `json:"state,omitempty" maxminddb:"state"`
-		City    string  `json:"city,omitempty" maxminddb:"city"`
-		Geohash string  `json:"geohash,omitempty" maxminddb:"geohash"`
-		Density float64 `json:"density,omitempty" maxminddb:"density"`
-		Skew    int     `json:"skew,omitempty" maxminddb:"skew"`
-	} `json:"concentration,omitempty" maxminddb:"concentration"`
-	Countries int `json:"countries,omitempty" maxminddb:"countries"`
-	Spread    int `json:"spread,omitempty" maxminddb:"spread"`
-	Count     int `json:"count,omitempty" maxminddb:"count"`
+	Behaviors     []string       `json:"behaviors,omitempty" maxminddb:"behaviors"`
+	Types         []string       `json:"types,omitempty" maxminddb:"types"`
+	Proxies       []string       `json:"proxies,omitempty" maxminddb:"proxies"`
+	Concentration *Concentration `json:"concentration,omitempty" maxminddb:"concentration"`
+	Countries     int            `json:"countries,omitempty" maxminddb:"countries"`
+	Spread        int            `json:"spread,omitempty" maxminddb:"spread"`
+	Count         int            `json:"count,omitempty" maxminddb:"count"`
+}
+
+type Concentration struct {
+	Country string  `json:"country,omitempty" maxminddb:"country"`
+	State   string  `json:"state,omitempty" maxminddb:"state"`
+	City    string  `json:"city,omitempty" maxminddb:"city"`
+	Geohash string  `json:"geohash,omitempty" maxminddb:"geohash"`
+	Density float64 `json:"density,omitempty" maxminddb:"density"`
+	Skew    int     `json:"skew,omitempty" maxminddb:"skew"`
 }
 
 type Location struct {
@@ -205,22 +213,27 @@ func (ipCtx IPContextV6) ToMMDB() mmdbtype.Map {
 		clientProxies = append(clientProxies, mmdbtype.String(p))
 	}
 
-	record["client"] = mmdbtype.Map{
+	clientMap := mmdbtype.Map{
 		"behaviors": clientBehaviors,
 		"types":     clientTypes,
 		"proxies":   clientProxies,
-		"concentration": mmdbtype.Map{
+		"countries": mmdbtype.Int32(ipCtx.Client.Countries),
+		"spread":    mmdbtype.Int32(ipCtx.Client.Spread),
+		"count":     mmdbtype.Int32(ipCtx.Client.Count),
+	}
+
+	if ipCtx.Client.Concentration != nil {
+		clientMap["concentration"] = mmdbtype.Map{
 			"country": mmdbtype.String(ipCtx.Client.Concentration.Country),
 			"state":   mmdbtype.String(ipCtx.Client.Concentration.State),
 			"city":    mmdbtype.String(ipCtx.Client.Concentration.City),
 			"geohash": mmdbtype.String(ipCtx.Client.Concentration.Geohash),
 			"density": mmdbtype.Float64(ipCtx.Client.Concentration.Density),
 			"skew":    mmdbtype.Int32(ipCtx.Client.Concentration.Skew),
-		},
-		"countries": mmdbtype.Int32(ipCtx.Client.Countries),
-		"spread":    mmdbtype.Int32(ipCtx.Client.Spread),
-		"count":     mmdbtype.Int32(ipCtx.Client.Count),
+		}
 	}
+
+	record["client"] = clientMap
 
 	return record
 }
@@ -237,12 +250,20 @@ func (as *AS) merge(other *AS) {
 
 func (client *Client) merge(other *Client) {
 	client.Behaviors = mergeUniqueSlices(client.Behaviors, other.Behaviors)
-	client.Concentration.Country = takeNewerIfNotEmpty(client.Concentration.Country, other.Concentration.Country)
-	client.Concentration.State = takeNewerIfNotEmpty(client.Concentration.State, other.Concentration.State)
-	client.Concentration.City = takeNewerIfNotEmpty(client.Concentration.City, other.Concentration.City)
-	client.Concentration.Geohash = takeNewerIfNotEmpty(client.Concentration.Geohash, other.Concentration.Geohash)
-	client.Concentration.Density = takeNewerIfNotEmpty(client.Concentration.Density, other.Concentration.Density)
-	client.Concentration.Skew = takeNewerIfNotEmpty(client.Concentration.Skew, other.Concentration.Skew)
+
+	// Handle concentration pointer merging
+	if other.Concentration != nil {
+		if client.Concentration == nil {
+			client.Concentration = &Concentration{}
+		}
+		client.Concentration.Country = takeNewerIfNotEmpty(client.Concentration.Country, other.Concentration.Country)
+		client.Concentration.State = takeNewerIfNotEmpty(client.Concentration.State, other.Concentration.State)
+		client.Concentration.City = takeNewerIfNotEmpty(client.Concentration.City, other.Concentration.City)
+		client.Concentration.Geohash = takeNewerIfNotEmpty(client.Concentration.Geohash, other.Concentration.Geohash)
+		client.Concentration.Density = takeNewerIfNotEmpty(client.Concentration.Density, other.Concentration.Density)
+		client.Concentration.Skew = takeNewerIfNotEmpty(client.Concentration.Skew, other.Concentration.Skew)
+	}
+
 	client.Countries = takeNewerIfNotEmpty(client.Countries, other.Countries)
 	client.Spread = takeNewerIfNotEmpty(client.Spread, other.Spread)
 	client.Proxies = mergeUniqueSlices(client.Proxies, other.Proxies)
@@ -261,7 +282,15 @@ func (ipContext *IPContext) Merge(other *IPContext) {
 	ipContext.AS.merge(&other.AS)
 	ipContext.Organization = takeNewerIfNotEmpty(ipContext.Organization, other.Organization)
 	ipContext.Infrastructure = takeNewerIfNotEmpty(ipContext.Infrastructure, other.Infrastructure)
-	ipContext.Client.merge(&other.Client)
+
+	// Handle client pointer merging
+	if other.Client != nil {
+		if ipContext.Client == nil {
+			ipContext.Client = &Client{}
+		}
+		ipContext.Client.merge(other.Client)
+	}
+
 	ipContext.Location.merge(&other.Location)
 	ipContext.Services = mergeUniqueSlices(ipContext.Services, other.Services)
 	ipContext.Risks = mergeUniqueSlices(ipContext.Risks, other.Risks)
@@ -310,4 +339,75 @@ func mergeTunnels(t1, t2 []Tunnel) []Tunnel {
 		}
 	}
 	return merged
+}
+
+// IPGeoMMDBResponse represents the response structure from the ipgeo MMDB
+type IPGeoMMDBResponse struct {
+	City struct {
+		Names map[string]string `maxminddb:"names"`
+	} `maxminddb:"city"`
+	Country struct {
+		ISOCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
+	} `maxminddb:"country"`
+	Location struct {
+		AccuracyRadius uint16  `maxminddb:"accuracy_radius"`
+		Latitude       float64 `maxminddb:"latitude"`
+		Longitude      float64 `maxminddb:"longitude"`
+		TimeZone       string  `maxminddb:"time_zone"`
+	} `maxminddb:"location"`
+	RegisteredCountry struct {
+		ISOCode string            `maxminddb:"iso_code"`
+		Names   map[string]string `maxminddb:"names"`
+	} `maxminddb:"registered_country"`
+	Spur struct {
+		AS struct {
+			Number       int    `maxminddb:"number"`
+			Organization string `maxminddb:"organization"`
+		} `maxminddb:"as"`
+		Infrastructure string `maxminddb:"infrastructure"`
+	} `maxminddb:"spur"`
+	Subdivisions []struct {
+		Names map[string]string `maxminddb:"names"`
+	} `maxminddb:"subdivisions"`
+}
+
+// ToIPContext converts the ipgeo MMDB response to an IPContext object
+// Only includes IP, location, and AS details as specified
+func (r *IPGeoMMDBResponse) ToIPContext(ip string) *IPContext {
+	ctx := &IPContext{
+		IP: ip,
+	}
+
+	// Set location details
+	ctx.Location.Country = r.Country.ISOCode
+	ctx.Location.City = r.getEnglishName(r.City.Names)
+
+	// Set state from subdivisions if available
+	if len(r.Subdivisions) > 0 {
+		ctx.Location.State = r.getEnglishName(r.Subdivisions[0].Names)
+	}
+
+	// Set AS details
+	ctx.AS.Number = r.Spur.AS.Number
+	ctx.AS.Organization = r.Spur.AS.Organization
+
+	// Set infrastructure details
+	ctx.Infrastructure = r.Spur.Infrastructure
+
+	return ctx
+}
+
+// getEnglishName extracts the English name from a names map, fallback to any available name
+func (r *IPGeoMMDBResponse) getEnglishName(names map[string]string) string {
+	if name, exists := names["en"]; exists {
+		return name
+	}
+	// Fallback to any available name
+	for _, name := range names {
+		if name != "" {
+			return name
+		}
+	}
+	return ""
 }
