@@ -35,6 +35,28 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6C
 		lastRealtimeInfo = &spur.RealtimeFeedInfo{}
 	}
 
+	// Load ipgeo data first since it's the fallback for the API - prioritize making the API operational quickly
+	if ipgeoClient != nil {
+		slog.Info("loading ipgeo data first for API fallback")
+		latestIPGeoInfo, err := spurAPI.LatestFeedInfo(ctx, spur.IPGeo)
+		if err != nil {
+			slog.Warn("error getting latest ipgeo feed info", "error", err.Error())
+		} else {
+			ipgeoMMDBReader, err := spurAPI.LatestGeoFeedMMDB(ctx, spur.IPGeo)
+			if err != nil {
+				slog.Warn("error getting latest ipgeo MMDB", "error", err.Error())
+			} else {
+				err = ipgeoClient.LoadIPGeoFromReader(ipgeoMMDBReader)
+				if err != nil {
+					slog.Warn("error loading ipgeo MMDB", "error", err.Error())
+				} else {
+					ipgeoClient.SetLastFeedInfo(latestIPGeoInfo)
+					slog.Info("ipgeo MMDB loaded successfully - API fallback ready")
+				}
+			}
+		}
+	}
+
 	// If we don't have the latest feed info, download and process the latest feed file to seed the initial data
 	if lastFeedInfo.JSON.Date == "" {
 		lastFeedInfo, err = spurAPI.LatestFeedInfo(ctx, cfg.SpurFeedType)
@@ -86,27 +108,6 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6C
 				} else {
 					v6Client.SetLastFeedInfo(latestV6Info)
 					slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
-				}
-			}
-		}
-	}
-
-	// Since ipgeo is in memory and not in redis, we need to reprocess it every time the daemon starts
-	if ipgeoClient != nil {
-		latestIPGeoInfo, err := spurAPI.LatestFeedInfo(ctx, spur.IPGeo)
-		if err != nil {
-			slog.Warn("error getting latest ipgeo feed info", "error", err.Error())
-		} else {
-			ipgeoMMDBReader, err := spurAPI.LatestGeoFeedMMDB(ctx, spur.IPGeo)
-			if err != nil {
-				slog.Warn("error getting latest ipgeo MMDB", "error", err.Error())
-			} else {
-				err = ipgeoClient.LoadIPGeoFromReader(ipgeoMMDBReader)
-				if err != nil {
-					slog.Warn("error loading ipgeo MMDB", "error", err.Error())
-				} else {
-					ipgeoClient.SetLastFeedInfo(latestIPGeoInfo)
-					slog.Info("ipgeo MMDB loaded successfully")
 				}
 			}
 		}
