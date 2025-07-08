@@ -3,10 +3,14 @@ package spur
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/oschwald/maxminddb-golang"
 )
 
 // NewAPI - create new API struct
@@ -84,6 +88,52 @@ func (api *API) LatestFeed(ctx context.Context, feedType FeedType) (io.ReadClose
 	}
 
 	return r.Body, nil
+}
+
+func (api *API) LatestGeoFeedMMDB(ctx context.Context, feedType FeedType) (*maxminddb.Reader, error) {
+	url := latestGeoFeedUrl(api.BaseURL, api.Version, string(feedType))
+
+	// Construct the request manually to avoid setting Accept header
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Token", api.Token)
+
+	r, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.StatusCode != http.StatusOK {
+		var feedError FeedError
+		err = json.NewDecoder(r.Body).Decode(&feedError)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading body: %w", err)
+	}
+
+	// Write the body to a temporary file for inspection
+	tmpFile, tmpErr := os.CreateTemp("", "spur-mmdb-*.mmdb")
+	if tmpErr == nil {
+		_, _ = tmpFile.Write(bodyBytes)
+		tmpFile.Close()
+		slog.Info("MMDB written to temp file", slog.String("path", tmpFile.Name()))
+	} else {
+		slog.Warn("Failed to write MMDB to temp file", slog.String("error", tmpErr.Error()))
+	}
+
+	mmdbReader, err := maxminddb.FromBytes(bodyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return mmdbReader, nil
 }
 
 func (api *API) LatestRealtimeFeedInfo(ctx context.Context, feedType FeedType) (*RealtimeFeedInfo, error) {
@@ -196,6 +246,10 @@ func latestFeedInfoUrl(baseURL, version, feed string) string {
 
 func latestFeedUrl(baseURL, version, feed string) string {
 	return constructFeedBaseURL(baseURL, version, feed) + "/latest.json.gz"
+}
+
+func latestGeoFeedUrl(baseURL, version, feed string) string {
+	return constructFeedBaseURL(baseURL, version, feed) + "/latest.mmdb"
 }
 
 func latestRealtimeFeedUrl(baseURL, version, feed string) string {

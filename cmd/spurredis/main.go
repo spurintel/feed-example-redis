@@ -95,6 +95,9 @@ func main() {
 	// Setup ipv6 lookup client
 	v6Client := storage.NewMMDB()
 
+	// Setup ipgeo lookup client
+	ipgeoClient := storage.NewMMDB()
+
 	// Start the main process
 	switch command {
 	case "daemon":
@@ -102,7 +105,7 @@ func main() {
 		if api {
 			g.Go(func() error {
 				defer cancel()
-				api := server.NewServer(cfg, redisClient, v6Client)
+				api := server.NewServer(cfg, redisClient, v6Client, ipgeoClient)
 				if cfg.CertFile != "" && cfg.KeyFile != "" {
 					return api.StartTLS(ctx)
 				}
@@ -111,7 +114,7 @@ func main() {
 		}
 		g.Go(func() error {
 			defer cancel()
-			return commands.Daemon(ctx, cfg, redisClient, v6Client)
+			return commands.Daemon(ctx, cfg, redisClient, v6Client, ipgeoClient)
 		})
 	case "insert":
 		// TODO

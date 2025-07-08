@@ -11,7 +11,7 @@ import (
 	"log/slog"
 )
 
-func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6Client *storage.MMDB) error {
+func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6Client *storage.MMDB, ipgeoClient *storage.MMDB) error {
 	slog.Info("starting process")
 	defer slog.Info("stopping process")
 
@@ -76,18 +76,38 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6C
 		if err != nil {
 			slog.Warn("error getting latest ipv6 feed info", "error", err.Error())
 		} else {
-			v6Client.SetLastFeedInfo(latestV6Info)
-		}
-
-		ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
-		if err != nil {
-			slog.Warn("error getting latest ipv6 feed", "error", err.Error())
-		} else {
-			count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+			ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
 			if err != nil {
-				slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+				slog.Warn("error getting latest ipv6 feed", "error", err.Error())
 			} else {
-				slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+				count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+				if err != nil {
+					slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+				} else {
+					v6Client.SetLastFeedInfo(latestV6Info)
+					slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+				}
+			}
+		}
+	}
+
+	// Since ipgeo is in memory and not in redis, we need to reprocess it every time the daemon starts
+	if ipgeoClient != nil {
+		latestIPGeoInfo, err := spurAPI.LatestFeedInfo(ctx, spur.IPGeo)
+		if err != nil {
+			slog.Warn("error getting latest ipgeo feed info", "error", err.Error())
+		} else {
+			ipgeoMMDBReader, err := spurAPI.LatestGeoFeedMMDB(ctx, spur.IPGeo)
+			if err != nil {
+				slog.Warn("error getting latest ipgeo MMDB", "error", err.Error())
+			} else {
+				err = ipgeoClient.LoadIPGeoFromReader(ipgeoMMDBReader)
+				if err != nil {
+					slog.Warn("error loading ipgeo MMDB", "error", err.Error())
+				} else {
+					ipgeoClient.SetLastFeedInfo(latestIPGeoInfo)
+					slog.Info("ipgeo MMDB loaded successfully")
+				}
 			}
 		}
 	}
@@ -116,22 +136,44 @@ func Daemon(ctx context.Context, cfg app.Config, redisClient *storage.Redis, v6C
 				if err != nil {
 					slog.Error("error getting latest ipv6 feed info", "error", err.Error())
 				} else {
-					v6Client.SetLastFeedInfo(latestV6Info)
-				}
-
-				if latestV6Info.JSON.Date != v6Client.GetLastFeedInfo().JSON.Date {
-					ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
-					if err != nil {
-						slog.Warn("error getting latest ipv6 feed", "error", err.Error())
-					} else {
-						count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+					// Check if ipv6 data has changed
+					if latestV6Info.JSON.Date != v6Client.GetLastFeedInfo().JSON.Date {
+						ipv6FeedStream, err := spurAPI.LatestFeed(ctx, v6FeedType)
 						if err != nil {
-							slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+							slog.Warn("error getting latest ipv6 feed", "error", err.Error())
 						} else {
-							slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+							count, err := v6Client.StreamingFeedInsert(ctx, ipv6FeedStream)
+							if err != nil {
+								slog.Warn("error inserting ipv6 feed into mmdb", "error", err.Error())
+							} else {
+								v6Client.SetLastFeedInfo(latestV6Info)
+								slog.Info("ipv6 feed updated successfully", slog.Int64("count", count))
+							}
 						}
+					}
+				}
+			}
 
-						slog.Info("ipv6 feed inserted into mmdb", slog.Int64("count", count))
+			// Check for new ipgeo data if we have a client
+			if ipgeoClient != nil {
+				latestIPGeoInfo, err := spurAPI.LatestFeedInfo(ctx, spur.IPGeo)
+				if err != nil {
+					slog.Error("error getting latest ipgeo feed info", "error", err.Error())
+				} else {
+					// Check if ipgeo data has changed
+					if latestIPGeoInfo.JSON.Date != ipgeoClient.GetLastFeedInfo().JSON.Date {
+						ipgeoMMDBReader, err := spurAPI.LatestGeoFeedMMDB(ctx, spur.IPGeo)
+						if err != nil {
+							slog.Warn("error getting latest ipgeo MMDB", "error", err.Error())
+						} else {
+							err = ipgeoClient.LoadIPGeoFromReader(ipgeoMMDBReader)
+							if err != nil {
+								slog.Warn("error loading ipgeo MMDB", "error", err.Error())
+							} else {
+								ipgeoClient.SetLastFeedInfo(latestIPGeoInfo)
+								slog.Info("ipgeo MMDB updated successfully")
+							}
+						}
 					}
 				}
 			}

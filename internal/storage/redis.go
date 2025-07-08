@@ -72,7 +72,33 @@ func (r *Redis) GetByIP(ctx context.Context, ip string) (*spur.IPContext, error)
 		return nil, err
 	}
 
+	// Handle backward compatibility: if Client has no meaningful data, set to nil
+	if ipctx.Client != nil && isEmptyClient(ipctx.Client) {
+		ipctx.Client = nil
+	}
+
 	return &ipctx, nil
+}
+
+// isEmptyClient checks if a Client has no meaningful data
+func isEmptyClient(client *spur.Client) bool {
+	return len(client.Behaviors) == 0 &&
+		len(client.Types) == 0 &&
+		len(client.Proxies) == 0 &&
+		(client.Concentration == nil || isEmptyConcentration(client.Concentration)) &&
+		client.Countries == 0 &&
+		client.Spread == 0 &&
+		client.Count == 0
+}
+
+// isEmptyConcentration checks if a Concentration has no meaningful data
+func isEmptyConcentration(conc *spur.Concentration) bool {
+	return conc.Country == "" &&
+		conc.State == "" &&
+		conc.City == "" &&
+		conc.Geohash == "" &&
+		conc.Density == 0 &&
+		conc.Skew == 0
 }
 
 // LatestFeedInfo - get the latest feed info from Redis

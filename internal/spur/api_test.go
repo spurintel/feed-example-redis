@@ -2,7 +2,9 @@ package spur
 
 import (
 	"context"
+	"encoding/json"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -261,4 +263,133 @@ func TestRealtimeFeed(t *testing.T) {
 	if size == 0 {
 		t.Fatalf("Response body was empty")
 	}
+}
+
+func TestAPI_LatestGeoFeedMMDB(t *testing.T) {
+	token := os.Getenv("SPUR_REDIS_API_TOKEN")
+	if token == "" {
+		t.Fatal("SPUR_REDIS_API_TOKEN is not set")
+	}
+
+	api := &API{
+		BaseURL: "https://feeds.spur.us",
+		Version: "v2",
+		Token:   token,
+	}
+
+	mmdb, err := api.LatestGeoFeedMMDB(context.Background(), IPGeo)
+	if err != nil {
+		t.Fatalf("LatestGeoFeedMMDB returned error: %v", err)
+	}
+
+	var record map[string]interface{}
+	err = mmdb.Lookup(net.ParseIP("1.1.1.1"), &record)
+	if err != nil {
+		t.Fatalf("Lookup for 1.1.1.1 failed: %v", err)
+	}
+
+	t.Logf("1.1.1.1 record: %+v", record)
+}
+
+func TestIPGeoMMDBResponse_ToIPContext(t *testing.T) {
+	// Test data based on the example JSON provided
+	response := IPGeoMMDBResponse{
+		City: struct {
+			Names map[string]string `maxminddb:"names"`
+		}{
+			Names: map[string]string{
+				"en": "Anycast",
+				"de": "Anycast",
+			},
+		},
+		Country: struct {
+			ISOCode string            `maxminddb:"iso_code"`
+			Names   map[string]string `maxminddb:"names"`
+		}{
+			ISOCode: "ZZ",
+			Names: map[string]string{
+				"en": "Anycast",
+				"de": "Anycast",
+			},
+		},
+		Spur: struct {
+			AS struct {
+				Number       int    `maxminddb:"number"`
+				Organization string `maxminddb:"organization"`
+			} `maxminddb:"as"`
+			Infrastructure string `maxminddb:"infrastructure"`
+		}{
+			AS: struct {
+				Number       int    `maxminddb:"number"`
+				Organization string `maxminddb:"organization"`
+			}{
+				Number:       13335,
+				Organization: "Cloudflare, Inc.",
+			},
+			Infrastructure: "DATACENTER",
+		},
+		Subdivisions: []struct {
+			Names map[string]string `maxminddb:"names"`
+		}{
+			{
+				Names: map[string]string{
+					"en": "Anycast",
+					"de": "Anycast",
+				},
+			},
+		},
+	}
+
+	testIP := "1.1.1.1"
+	ipContext := response.ToIPContext(testIP)
+
+	// Verify the conversion
+	if ipContext.IP != testIP {
+		t.Errorf("Expected IP %s, got %s", testIP, ipContext.IP)
+	}
+
+	if ipContext.Location.City != "Anycast" {
+		t.Errorf("Expected city 'Anycast', got %s", ipContext.Location.City)
+	}
+
+	if ipContext.Location.Country != "ZZ" {
+		t.Errorf("Expected country 'ZZ', got %s", ipContext.Location.Country)
+	}
+
+	if ipContext.Location.State != "Anycast" {
+		t.Errorf("Expected state 'Anycast', got %s", ipContext.Location.State)
+	}
+
+	if ipContext.AS.Number != 13335 {
+		t.Errorf("Expected AS number 13335, got %d", ipContext.AS.Number)
+	}
+
+	if ipContext.AS.Organization != "Cloudflare, Inc." {
+		t.Errorf("Expected AS organization 'Cloudflare, Inc.', got %s", ipContext.AS.Organization)
+	}
+
+	if ipContext.Infrastructure != "DATACENTER" {
+		t.Errorf("Expected infrastructure 'DATACENTER', got %s", ipContext.Infrastructure)
+	}
+
+	// Test that Client field is properly nil
+	if ipContext.Client != nil {
+		t.Errorf("Expected Client to be nil, but got: %+v", ipContext.Client)
+	}
+
+	// Test JSON serialization to ensure client is omitted
+	jsonData, err := json.Marshal(ipContext)
+	if err != nil {
+		t.Fatalf("Failed to marshal IPContext: %v", err)
+	}
+
+	jsonStr := string(jsonData)
+	t.Logf("JSON output: %s", jsonStr)
+
+	// Check if client field is present in JSON
+	if strings.Contains(jsonStr, "client") {
+		t.Errorf("Client field should be omitted from JSON, but found: %s", jsonStr)
+	}
+
+	t.Logf("Converted IPContext: %+v", ipContext)
 }

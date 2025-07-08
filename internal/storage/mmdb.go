@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"feedexampleredis/internal/spur"
 	"fmt"
-	"github.com/maxmind/mmdbwriter"
-	maxminddb "github.com/oschwald/maxminddb-golang"
 	"io"
 	"log/slog"
 	"net"
 	"sync/atomic"
+
+	"github.com/maxmind/mmdbwriter"
+	maxminddb "github.com/oschwald/maxminddb-golang"
 )
 
 var ErrorIPNotFound = fmt.Errorf("IP not found")
@@ -146,4 +147,58 @@ func (m *MMDB) GetIP(ip net.IP) (*spur.IPContextV6, error) {
 	}
 
 	return &record, err
+}
+
+// GetIPGeoByIP looks up an IP in the ipgeo MMDB and returns geolocation data
+func (m *MMDB) GetIPGeoByIP(ip net.IP) (*spur.IPGeoMMDBResponse, error) {
+	var record spur.IPGeoMMDBResponse
+	db := m.mmdb.Load()
+	if db == nil {
+		return nil, fmt.Errorf("ipgeo MMDB not loaded")
+	}
+
+	err := db.Lookup(ip, &record)
+	if err != nil {
+		return nil, fmt.Errorf("unable to lookup IP in ipgeo MMDB: %w", err)
+	}
+
+	// Check if we have valid data
+	if record.Spur.AS.Number == 0 && record.Country.ISOCode == "" {
+		return nil, ErrorIPNotFound
+	}
+
+	return &record, nil
+}
+
+// GetIPGeoByIPString looks up an IP string in the ipgeo MMDB and returns geolocation data
+func (m *MMDB) GetIPGeoByIPString(ipStr string) (*spur.IPGeoMMDBResponse, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return nil, fmt.Errorf("invalid IP address: %s", ipStr)
+	}
+	return m.GetIPGeoByIP(ip)
+}
+
+// LoadIPGeoFromReader loads ipgeo MMDB data from a reader
+func (m *MMDB) LoadIPGeoFromReader(reader *maxminddb.Reader) error {
+	if reader == nil {
+		return fmt.Errorf("reader cannot be nil")
+	}
+
+	// Store the reader
+	m.mmdb.Store(reader)
+
+	return nil
+}
+
+// GetByIP looks up an IP in the ipgeo MMDB and returns an IPContext (for fallback usage)
+func (m *MMDB) GetByIP(ctx context.Context, ipStr string) (*spur.IPContext, error) {
+	geoRecord, err := m.GetIPGeoByIPString(ipStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert the ipgeo response to IPContext
+	ipContext := geoRecord.ToIPContext(ipStr)
+	return ipContext, nil
 }

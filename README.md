@@ -58,25 +58,39 @@ curl -vv -H "TOKEN: testtoken1" localhost:8080/v2/context/${YOUR_IP} | jq
 ```
 
 ## Running
-You have two options for running the application: building the binary directly with make or using Docker Compose for containerized deployment.
+You have three options for running the application: local development with Docker, production with Docker Compose, or building the binary directly.
 
-### Option 1 - Run with Docker Compose
+### Option 1 - Local Development with Docker Compose
+This builds a local Docker image with your changes and runs it with Docker Compose:
+
 ```bash
 # Clone the repository
 git clone https://github.com/spurintel/feed-example-redis.git
 
-# Build the binary
-cd feed-example-redis
-make bin
-
 # Set the environment variables, minimum required is the Spur token
 export SPUR_REDIS_API_TOKEN=your_spur_token
 
-# Start the application with Docker Compose
-docker-compose up
+# Build and run with local changes
+cd feed-example-redis
+make run
 ```
 
-### Option 2 - Build and run the binary directly
+**Important**: Make sure to export your environment variables (especially `SPUR_REDIS_API_TOKEN`) before running the `make` commands, as the Makefile passes these through to Docker Compose.
+
+The local development setup automatically detects your platform (ARM64/AMD64) and builds the appropriate Docker image for your architecture.
+
+### Option 2 - Production with Docker Compose
+This uses the published Docker image from Docker Hub:
+
+```bash
+# Set the environment variables, minimum required is the Spur token
+export SPUR_REDIS_API_TOKEN=your_spur_token
+
+# Run with production image
+make run-prod
+```
+
+### Option 3 - Build and run the binary directly
 ```bash
 # Build the binary
 cd feed-example-redis
@@ -88,6 +102,20 @@ docker run --rm -p 6379:6379 --name redis redis:latest
 # Run the binary in daemon mode, assumes you have your token and other configurations set in a .env file
 export $(cat .env | xargs) && ./target/spurredis_darwin_arm64 daemon
 ```
+
+## Available Make Targets
+Run `make help` to see all available targets with descriptions, or use these common ones:
+
+- `make run` - Local development (builds local Docker image and runs with Docker Compose)
+- `make run-local` - Same as `make run` 
+- `make run-prod` - Production (uses published Docker image)
+- `make build-local` - Build local Docker image only
+- `make clean` - Remove build artifacts and local Docker image
+- `make bin` - Build native binary for your platform
+- `make bin-linux` - Build Linux binary
+- `make test` - Run tests
+- `make format` - Format code
+- `make lint` - Run linter
 
 ## Configuring and Running the API Locally
 To run the API server locally, use the \`-api\` flag when starting the binary in daemon mode. This will start the local API server along with the daemon process:
